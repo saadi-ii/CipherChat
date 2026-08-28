@@ -1,12 +1,22 @@
-import React from 'react'
-import Link from 'next/link'
+"use client"
 
-const page = () => {
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/providers/auth-provider"
+import { Spinner } from "@/components/ui/spinner"
+
+export default function Home() {
+  const router = useRouter()
+  const { user, loading } = useAuth()
+
+  useEffect(() => {
+    if (loading) return
+    router.replace(user ? "/chat" : "/signin")
+  }, [user, loading, router])
+
   return (
-    <div>
-        <Link href="/signup"  className="bg-blue-500 text-white px-4 py-2 rounded">Sign Up</Link>
+    <div className="flex min-h-svh items-center justify-center">
+      <Spinner className="size-6" />
     </div>
   )
 }
-
-export default page
