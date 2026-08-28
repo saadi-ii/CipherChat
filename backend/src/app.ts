@@ -1,12 +1,12 @@
 import express from "express"
 import cookieParser from "cookie-parser"
-import user_routes from "./routes/user.routes"
 import cors from "cors"
-import dotenv from 'dotenv';
+import dotenv from "dotenv"
+import user_routes from "./routes/user.routes"
+import message_routes from "./routes/message.routes"
 dotenv.config()
 
-
-const frontend_url = process.env.frontend_url as string 
+const frontend_url = process.env.frontend_url as string
 const app = express()
 
 app.use(cors({
@@ -16,6 +16,11 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser())
 
+app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok" })
+})
+
 app.use("/user", user_routes)
+app.use("/message", message_routes)
 
 export default app
