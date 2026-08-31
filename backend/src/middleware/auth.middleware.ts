@@ -1,8 +1,6 @@
 import user_model from "../model/user.model"
 import { Request, Response, NextFunction } from "express"
-import jwt, { JwtPayload } from "jsonwebtoken"
-import dotenv from "dotenv"
-dotenv.config()
+import { verifyToken } from "../lib/token"
 
 declare global {
     namespace Express {
@@ -25,11 +23,7 @@ export const protect = async (
             return
         }
 
-        const decode = jwt.verify(
-            token,
-            process.env.JWT_SECRET as string
-        ) as JwtPayload
-
+        const decode = verifyToken(token)
         const user_data = await user_model.findById(decode._id)
 
         if (!user_data) {

@@ -1,17 +1,33 @@
 import http from "http"
-import dotenv from "dotenv"
+import { env } from "./src/lib/env"
 import db from "./src/db/db"
 import app from "./src/app"
 import { initSocket } from "./src/socket"
-dotenv.config()
-
-const PORT = process.env.PORT || 3000
-
-db()
 
 const server = http.createServer(app)
-initSocket(server)
 
-server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`)
-})
+async function start() {
+    try {
+        await db()
+    } catch (err) {
+        console.error("Failed to connect to MongoDB - aborting startup:", err)
+        process.exit(1)
+    }
+
+    initSocket(server)
+
+    server.listen(env.port, () => {
+        console.log(`Server is running on port ${env.port}`)
+    })
+}
+
+void start()
+
+// graceful shutdown so platforms can restart/redeploy cleanly
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.on(signal, () => {
+        console.log(`${signal} received, shutting down`)
+        server.close(() => process.exit(0))
+        setTimeout(() => process.exit(1), 10000).unref()
+    })
+}

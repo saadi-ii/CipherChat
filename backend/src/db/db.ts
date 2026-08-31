@@ -1,16 +1,22 @@
 import mongoose from "mongoose"
-import dotenv from "dotenv"
-dotenv.config()
+import { env } from "../lib/env"
 
-const MONGODB_URI = process.env.MONGODB_URI as string
-const connetDB = async() => {
-    try {
-        await mongoose.connect(MONGODB_URI)
-    console.log("db is connected");
-    } catch (error) {
-        console.log(error);
-    }
-    
+/**
+ * Connect to MongoDB. Rejects (so the caller can abort startup) if the initial
+ * connection fails - we don't want the server accepting traffic with no DB.
+ */
+const connectDB = async (): Promise<void> => {
+    mongoose.connection.on("disconnected", () => {
+        console.warn("MongoDB disconnected")
+    })
+    mongoose.connection.on("reconnected", () => {
+        console.log("MongoDB reconnected")
+    })
+
+    await mongoose.connect(env.mongoUri, {
+        serverSelectionTimeoutMS: 10000,
+    })
+    console.log("db is connected")
 }
 
-export default connetDB
+export default connectDB

@@ -1,11 +1,10 @@
 import { Server as HttpServer } from "http"
 import { Server, Socket } from "socket.io"
 import * as cookie from "cookie"
-import dotenv from "dotenv"
+import { env } from "../lib/env"
 import { verifyToken } from "../lib/token"
 import user_model from "../model/user.model"
 import { createMessage, markConversationRead } from "../lib/message.service"
-dotenv.config()
 
 interface AuthedSocket extends Socket {
     userId: string
@@ -17,7 +16,7 @@ const online = new Map<string, number>()
 export const initSocket = (httpServer: HttpServer): Server => {
     const io = new Server(httpServer, {
         cors: {
-            origin: process.env.frontend_url || "http://localhost:3000",
+            origin: env.corsOrigins,
             credentials: true,
         },
     })

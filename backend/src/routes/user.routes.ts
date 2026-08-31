@@ -1,4 +1,5 @@
 import { Router } from "express"
+import rateLimit from "express-rate-limit"
 import {
     _signup,
     _signin,
@@ -10,8 +11,17 @@ import { protect } from "../middleware/auth.middleware"
 
 const router = Router()
 
-router.post("/signup", _signup)
-router.post("/signin", _signin)
+// brute-force protection on credential endpoints only
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { message: "Too many attempts, please try again later" },
+})
+
+router.post("/signup", authLimiter, _signup)
+router.post("/signin", authLimiter, _signin)
 router.post("/signout", _signout)
 router.get("/user", protect, _get)
 router.get("/users", protect, _getUsers)

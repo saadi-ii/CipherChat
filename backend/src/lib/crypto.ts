@@ -1,6 +1,5 @@
 import crypto from "crypto"
-import dotenv from "dotenv"
-dotenv.config()
+import { env } from "./env"
 
 /**
  * Message encryption at rest.
@@ -9,25 +8,15 @@ dotenv.config()
  * never exposes conversation content in plaintext - the same idea as hashing a
  * password, except here we need the value back so we encrypt instead of hash.
  *
- * ENCRYPTION_KEY must be 64 hex chars (32 bytes). Generate one with:
- *   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+ * ENCRYPTION_KEY must be 64 hex chars (32 bytes) - validated in lib/env.ts.
  */
 
 const ALGORITHM = "aes-256-gcm"
-
-const getKey = (): Buffer => {
-    const raw = process.env.ENCRYPTION_KEY as string
-    if (!raw || raw.length !== 64) {
-        throw new Error(
-            "ENCRYPTION_KEY missing or not 64 hex chars - set it in backend/.env"
-        )
-    }
-    return Buffer.from(raw, "hex")
-}
+const KEY = Buffer.from(env.encryptionKey, "hex")
 
 export const encrypt = (plaintext: string): string => {
     const iv = crypto.randomBytes(12)
-    const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv)
+    const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv)
     const encrypted = Buffer.concat([
         cipher.update(plaintext, "utf8"),
         cipher.final(),
@@ -46,7 +35,7 @@ export const decrypt = (payload: string): string => {
         const [ivB64, tagB64, dataB64] = payload.split(".")
         const decipher = crypto.createDecipheriv(
             ALGORITHM,
-            getKey(),
+            KEY,
             Buffer.from(ivB64, "base64")
         )
         decipher.setAuthTag(Buffer.from(tagB64, "base64"))

@@ -1,22 +1,18 @@
 import jwt, { JwtPayload } from "jsonwebtoken"
 import { CookieOptions } from "express"
-import dotenv from "dotenv"
-dotenv.config()
-
-const isProd = process.env.NODE_ENV === "production"
+import { env } from "./env"
 
 export const signToken = (userId: string): string =>
-    jwt.sign({ _id: userId }, process.env.JWT_SECRET as string, {
-        expiresIn: "7d",
-    })
+    jwt.sign({ _id: userId }, env.jwtSecret, { expiresIn: "7d" })
 
 export const verifyToken = (token: string): JwtPayload =>
-    jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload
+    jwt.verify(token, env.jwtSecret) as JwtPayload
 
 export const authCookieOptions: CookieOptions = {
     httpOnly: true,
-    sameSite: "lax",
-    secure: isProd,
+    sameSite: env.cookie.sameSite,
+    secure: env.cookie.secure,
+    domain: env.cookie.domain,
     path: "/",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
 }
