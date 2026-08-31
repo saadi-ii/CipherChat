@@ -81,6 +81,20 @@ For container hosts (Fly.io, Railway, any PaaS) use the multi-stage [`backend/Do
 2. Env var `NEXT_PUBLIC_API_URL` = the backend URL from step 1.
 3. Redeploy the backend afterwards if `FRONTEND_URL` changed — it drives CORS and Socket.IO origins.
 
+### Housekeeping
+
+Remove the demo/test accounts and their messages before going live:
+
+```bash
+cd backend
+npm run cleanup:test-users            # dry run - prints what it would delete
+npm run cleanup:test-users -- --yes   # actually delete
+```
+
+It is a dry run unless `--yes` is passed, and it refuses to touch the real
+accounts listed in `PROTECTED_USERNAMES`. Pass usernames as arguments to target
+a different set.
+
 ### Notes / caveats
 
 - **Third-party cookies:** with the frontend and backend on different domains, Safari (and Firefox in
