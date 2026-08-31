@@ -1,12 +1,16 @@
 # Render blueprint for the backend (Express + Socket.IO).
-# The frontend deploys separately on Vercel.
+#
+# The backend needs a long-running process for WebSockets, so it CANNOT run on
+# Vercel/Netlify serverless. The frontend deploys separately on Vercel.
 services:
   - type: web
     name: chatboot-backend
     runtime: node
     rootDir: backend
     plan: free
-    buildCommand: npm ci && npm run build
+    # --include=dev is required: NODE_ENV=production below would otherwise make
+    # `npm ci` skip devDependencies, and the build needs typescript.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
     envVars:

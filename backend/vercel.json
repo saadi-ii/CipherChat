@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "echo '' && echo '=========================================================' && echo ' The Chatboot backend CANNOT be deployed to Vercel.' && echo '' && echo ' It is a long-running Express + Socket.IO server. Vercel' && echo ' functions are serverless: no persistent process and no' && echo ' WebSocket support, so realtime chat cannot work here.' && echo '' && echo ' Deploy the BACKEND to Render / Railway / Fly.io instead' && echo ' (render.yaml and Dockerfile are in this folder).' && echo '' && echo ' Vercel should host the FRONTEND only:' && echo '   Project Settings -> Root Directory = frontend' && echo '=========================================================' && echo '' && exit 1"
+}

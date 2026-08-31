@@ -46,23 +46,40 @@ comma-separated list allowed).
 
 ## Deployment
 
-Frontend and backend deploy **separately**. Socket.IO needs a long-running Node process, so the
-backend can't run on serverless (Vercel/Netlify functions).
+This is **two deployments**, not one:
 
-### Backend → Render / Railway / Fly / any Node host
+| Part | Host | Why |
+| --- | --- | --- |
+| `frontend/` | **Vercel** (or any static/Next host) | Next.js builds to static pages |
+| `backend/` | **Render / Railway / Fly.io** — *never Vercel* | Socket.IO needs a long-running process and real WebSockets, which serverless functions cannot provide |
 
-- `render.yaml` is included (Render blueprint). Otherwise: build `npm ci && npm run build`, start `npm start`.
-- A multi-stage `backend/Dockerfile` is included for container hosts.
-- Required env vars: `NODE_ENV=production`, `MONGODB_URI`, `JWT_SECRET`, `ENCRYPTION_KEY` (64 hex,
-  **must stay stable** or stored messages become unreadable), `FRONTEND_URL` (the deployed frontend origin).
-- For a cross-domain frontend also set `COOKIE_SAMESITE=none` and `COOKIE_SECURE=true`.
-  `TRUST_PROXY` turns on automatically in production.
-- Health check: `GET /health`.
+> ⚠️ Pointing a Vercel project at `backend/` will not work. `backend/vercel.json` deliberately
+> fails the build with this message so it can't half-deploy silently.
 
-### Frontend → Vercel
+### 1. Backend → Render (blueprint included)
 
-- Set the project **Root Directory** to `frontend`.
-- Env var: `NEXT_PUBLIC_API_URL` = the deployed backend origin (e.g. `https://chatboot-backend.onrender.com`).
+1. Render dashboard → **New → Blueprint** → pick this repo. It reads [`render.yaml`](render.yaml)
+   and creates the `chatboot-backend` web service (root dir `backend`, health check `/health`).
+2. Fill in the env vars it prompts for:
+   - `MONGODB_URI` — your Atlas connection string
+   - `ENCRYPTION_KEY` — 64 hex chars; **must stay identical forever** or stored messages
+     become unreadable (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+   - `FRONTEND_URL` — the deployed frontend origin, e.g. `https://cipherchat.vercel.app`
+   - `JWT_SECRET` is generated automatically; `COOKIE_SAMESITE=none` / `COOKIE_SECURE=true` are preset.
+3. Note the service URL, e.g. `https://chatboot-backend.onrender.com`.
+
+Deploying by hand instead of by blueprint? Build with
+`npm ci --include=dev && npm run build` and start with `npm start`.
+The `--include=dev` matters: with `NODE_ENV=production`, plain `npm ci` skips devDependencies
+and the TypeScript compiler goes missing.
+
+For container hosts (Fly.io, Railway, any PaaS) use the multi-stage [`backend/Dockerfile`](backend/Dockerfile).
+
+### 2. Frontend → Vercel
+
+1. New Vercel project from this repo, **Root Directory = `frontend`**.
+2. Env var `NEXT_PUBLIC_API_URL` = the backend URL from step 1.
+3. Redeploy the backend afterwards if `FRONTEND_URL` changed — it drives CORS and Socket.IO origins.
 
 ### Notes / caveats
 
