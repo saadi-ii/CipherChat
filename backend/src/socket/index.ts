@@ -13,12 +13,18 @@ interface AuthedSocket extends Socket {
 // userId -> number of live sockets for that user
 const online = new Map<string, number>()
 
+const MAX_MESSAGE_LENGTH = 4000
+
+const isObjectId = (value: string): boolean => /^[0-9a-fA-F]{24}$/.test(value)
+
 export const initSocket = (httpServer: HttpServer): Server => {
     const io = new Server(httpServer, {
         cors: {
             origin: env.corsOrigins,
             credentials: true,
         },
+        // cap a single frame well below the 1MB default - messages are text
+        maxHttpBufferSize: 1e5,
     })
 
     // authenticate the handshake using the same httpOnly JWT cookie as REST
@@ -60,7 +66,13 @@ export const initSocket = (httpServer: HttpServer): Server => {
                 try {
                     const text = String(payload?.text ?? "").trim()
                     const to = String(payload?.to ?? "")
-                    if (!text || !to) return ack?.({ ok: false, error: "invalid payload" })
+
+                    if (!text || !isObjectId(to)) {
+                        return ack?.({ ok: false, error: "invalid payload" })
+                    }
+                    if (text.length > MAX_MESSAGE_LENGTH) {
+                        return ack?.({ ok: false, error: "message too long" })
+                    }
 
                     const message = await createMessage(userId, to, text)
                     io.to(to).emit("message:new", message)
@@ -73,15 +85,21 @@ export const initSocket = (httpServer: HttpServer): Server => {
         )
 
         socket.on("message:read", async (payload: { from?: string }) => {
-            const from = String(payload?.from ?? "")
-            if (!from) return
-            const ids = await markConversationRead(from, userId)
-            if (ids.length) io.to(from).emit("message:read", { by: userId, ids })
+            // never let a rejected promise escape a socket handler - an
+            // unhandled rejection takes the whole process down
+            try {
+                const from = String(payload?.from ?? "")
+                if (!isObjectId(from)) return
+                const ids = await markConversationRead(from, userId)
+                if (ids.length) io.to(from).emit("message:read", { by: userId, ids })
+            } catch (err) {
+                console.error("message:read failed", err)
+            }
         })
 
         socket.on("typing", (payload: { to?: string; typing?: boolean }) => {
             const to = String(payload?.to ?? "")
-            if (!to) return
+            if (!isObjectId(to)) return
             io.to(to).emit("typing", { from: userId, typing: !!payload?.typing })
         })
 
@@ -90,7 +108,11 @@ export const initSocket = (httpServer: HttpServer): Server => {
             if (remaining <= 0) {
                 online.delete(userId)
                 socket.broadcast.emit("presence:offline", { userId })
-                await user_model.findByIdAndUpdate(userId, { lastSeen: new Date() })
+                try {
+                    await user_model.findByIdAndUpdate(userId, { lastSeen: new Date() })
+                } catch (err) {
+                    console.error("failed to update lastSeen", err)
+                }
             } else {
                 online.set(userId, remaining)
             }

@@ -1,4 +1,4 @@
-import express from "express"
+import express, { NextFunction, Request, Response } from "express"
 import cookieParser from "cookie-parser"
 import cors from "cors"
 import helmet from "helmet"
@@ -34,5 +34,16 @@ app.use("/message", message_routes)
 // Blueprints only - these respond 501 until the features are built.
 app.use("/group", group_routes)
 app.use("/channel", channel_routes)
+
+// JSON 404 instead of Express's HTML default
+app.use((_req, res) => {
+    res.status(404).json({ message: "Not found" })
+})
+
+// Last-resort error handler: log server-side, never leak internals to clients.
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    console.error("Unhandled request error:", err)
+    res.status(500).json({ message: "Server Error" })
+})
 
 export default app
