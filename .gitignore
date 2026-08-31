@@ -1,0 +1,19 @@
+# dependencies / build output are ignored per-package too; this is a safety net
+node_modules/
+dist/
+.next/
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs / os / editor
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# claude code local settings (keep launch.json shared)
+.claude/settings.local.json
