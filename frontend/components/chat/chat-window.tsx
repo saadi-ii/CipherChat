@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { SendIcon } from "lucide-react"
+import { ArrowLeftIcon, SendIcon } from "lucide-react"
 import type { Message, User } from "@/lib/types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,7 @@ export function ChatWindow({
   peerTyping,
   onSend,
   onType,
+  onBack,
 }: {
   me: User
   peer: User | null
@@ -36,6 +37,8 @@ export function ChatWindow({
   peerTyping: boolean
   onSend: (text: string) => void
   onType: (typing: boolean) => void
+  /** Returns to the conversation list. Only rendered (as a header button) below md. */
+  onBack: () => void
 }) {
   const [draft, setDraft] = useState("")
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -78,9 +81,19 @@ export function ChatWindow({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b px-4 py-3">
-        <Avatar className="size-9">
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="flex shrink-0 items-center gap-2 border-b px-2 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] sm:gap-3 sm:px-4 sm:py-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-lg"
+          className="size-11 shrink-0 md:hidden"
+          onClick={onBack}
+          aria-label="Back to conversations"
+        >
+          <ArrowLeftIcon />
+        </Button>
+        <Avatar className="size-9 shrink-0">
           <AvatarFallback>{initials(peer.username)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">
@@ -91,7 +104,7 @@ export function ChatWindow({
         </div>
       </header>
 
-      <div className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
         {loading ? (
           <p className="text-center text-sm text-muted-foreground">Loading…</p>
         ) : messages.length === 0 ? (
@@ -114,14 +127,23 @@ export function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={submit} className="flex items-center gap-2 border-t p-3">
+      <form
+        onSubmit={submit}
+        className="flex shrink-0 items-center gap-2 border-t p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3"
+      >
         <Input
           value={draft}
           onChange={(e) => handleChange(e.target.value)}
           placeholder={`Message ${peer.username}`}
           autoComplete="off"
+          className="h-11 md:h-8"
         />
-        <Button type="submit" size="icon" disabled={!draft.trim()}>
+        <Button
+          type="submit"
+          size="icon-lg"
+          className="size-11 shrink-0 md:size-8"
+          disabled={!draft.trim()}
+        >
           <SendIcon />
           <span className="sr-only">Send</span>
         </Button>

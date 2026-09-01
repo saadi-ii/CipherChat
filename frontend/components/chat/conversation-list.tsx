@@ -38,7 +38,7 @@ export function ConversationList({
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Search people"
-            className="pl-8"
+            className="h-10 pl-8 md:h-8"
             aria-label="Search people"
           />
         </div>
@@ -69,10 +69,10 @@ export function ConversationList({
                   type="button"
                   onClick={() => onSelect(user)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors",
+                    "flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left transition-colors md:py-2",
                     selectedId === user._id
                       ? "bg-accent text-accent-foreground"
-                      : "hover:bg-muted"
+                      : "hover:bg-muted active:bg-muted"
                   )}
                 >
                   <span className="relative">

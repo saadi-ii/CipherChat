@@ -147,10 +147,20 @@ export function ChatShell({ me }: { me: User }) {
     [selected, onlineIds]
   )
 
+  // WhatsApp-style: below the md breakpoint there is room for exactly one
+  // column, so the conversation list and the open thread are two views that
+  // swap instead of two panels that squeeze - the list hides once a peer is
+  // selected, and a back button (in ChatWindow) clears the selection to
+  // return to it. At md and up both render side by side, permanently.
+  const showList = !selected
+  const closeThread = useCallback(() => setSelected(null), [])
+
   return (
-    <div className="flex h-svh w-full overflow-hidden">
-      <aside className="flex w-72 shrink-0 flex-col border-r bg-sidebar">
-        <div className="border-b px-3 py-3">
+    <div className="flex h-dvh w-full overflow-hidden">
+      <aside
+        className={`${showList ? "flex" : "hidden"} w-full shrink-0 flex-col border-r bg-sidebar md:flex md:w-80 lg:w-96`}
+      >
+        <div className="border-b px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <BrandMark iconClassName="size-7" textClassName="text-base" />
         </div>
 
@@ -165,7 +175,8 @@ export function ChatShell({ me }: { me: User }) {
           </span>
           <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon-lg"
+            className="size-11 md:size-8"
             onClick={handleLogout}
             aria-label="Sign out"
           >
@@ -188,7 +199,7 @@ export function ChatShell({ me }: { me: User }) {
         <BlueprintNav />
       </aside>
 
-      <main className="min-w-0 flex-1">
+      <main className={`${showList ? "hidden" : "flex"} min-w-0 flex-1 md:flex`}>
         {/* keyed on the peer so per-thread state (the draft) resets on switch */}
         <ChatWindow
           key={selected?._id ?? "none"}
@@ -200,6 +211,7 @@ export function ChatShell({ me }: { me: User }) {
           peerTyping={typingPeer}
           onSend={sendMessage}
           onType={sendTyping}
+          onBack={closeThread}
         />
       </main>
     </div>

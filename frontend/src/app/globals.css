@@ -126,5 +126,13 @@
   }
   html {
     @apply font-sans;
+    /* iOS Safari bumps text up to 100% on rotate by default; the layout
+       already reflows responsively, so opt out to keep sizes predictable */
+    -webkit-text-size-adjust: 100%;
+  }
+  /* tap feedback is handled per-component (hover/active classes); the
+     default mobile tap flash looks broken against rounded chat bubbles */
+  * {
+    -webkit-tap-highlight-color: transparent;
   }
 }
