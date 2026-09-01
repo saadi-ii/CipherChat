@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Chatboot",
+  title: "CipherChat",
   description: "A simple, secure real-time chat.",
 };
 

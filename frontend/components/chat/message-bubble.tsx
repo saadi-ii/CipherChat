@@ -20,7 +20,7 @@ export function MessageBubble({
         className={cn(
           "max-w-[75%] rounded-2xl px-3 py-2 text-sm break-words",
           mine
-            ? "bg-primary text-primary-foreground rounded-br-sm"
+            ? "bg-gradient-to-br from-primary to-chart-3 text-primary-foreground rounded-br-sm shadow-sm"
             : "bg-muted text-foreground rounded-bl-sm"
         )}
       >

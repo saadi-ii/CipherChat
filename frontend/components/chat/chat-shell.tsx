@@ -10,6 +10,7 @@ import type { Message, User } from "@/lib/types"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { BrandMark } from "@/components/brand-mark"
 import { ConversationList } from "@/components/chat/conversation-list"
 import { ChatWindow } from "@/components/chat/chat-window"
 import { BlueprintNav } from "@/components/chat/blueprint-nav"
@@ -149,9 +150,15 @@ export function ChatShell({ me }: { me: User }) {
   return (
     <div className="flex h-svh w-full overflow-hidden">
       <aside className="flex w-72 shrink-0 flex-col border-r bg-sidebar">
-        <div className="flex items-center gap-2 border-b px-3 py-3">
+        <div className="border-b px-3 py-3">
+          <BrandMark iconClassName="size-7" textClassName="text-base" />
+        </div>
+
+        <div className="flex items-center gap-2 border-b px-3 py-2.5">
           <Avatar className="size-8">
-            <AvatarFallback>{me.username.slice(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-chart-3/20 font-semibold text-primary">
+              {me.username.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
           </Avatar>
           <span className="min-w-0 flex-1 truncate text-sm font-semibold">
             {me.username}

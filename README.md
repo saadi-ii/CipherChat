@@ -1,4 +1,4 @@
-# Chatboot
+# CipherChat
 
 A simple, secure 1:1 chat that deploys to **Vercel as a single project**.
 
