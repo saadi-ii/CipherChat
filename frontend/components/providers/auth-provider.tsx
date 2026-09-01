@@ -8,7 +8,6 @@ import {
   useState,
 } from "react"
 import { api } from "@/lib/api"
-import { disconnectSocket } from "@/lib/socket"
 import type { User } from "@/lib/types"
 
 interface AuthContextValue {
@@ -42,13 +41,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore - clear locally regardless
     }
-    disconnectSocket()
     setUser(null)
   }, [])
 
+  // Restore the session on mount. Written out rather than calling refresh()
+  // so the state updates happen in async callbacks (not synchronously in the
+  // effect body) and are dropped if the provider unmounts first.
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    let active = true
+    api
+      .me()
+      .then((me) => {
+        if (active) setUser(me)
+      })
+      .catch(() => {
+        if (active) setUser(null)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <AuthContext.Provider value={{ user, loading, setUser, refresh, logout }}>

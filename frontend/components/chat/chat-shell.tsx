@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { LogOutIcon } from "lucide-react"
 
 import { api } from "@/lib/api"
-import { getSocket } from "@/lib/socket"
+import { useRealtime } from "@/lib/realtime"
 import type { Message, User } from "@/lib/types"
 import { useAuth } from "@/components/providers/auth-provider"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -27,16 +27,20 @@ export function ChatShell({ me }: { me: User }) {
   const [messagesLoading, setMessagesLoading] = useState(false)
 
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set())
-  const [typingPeer, setTypingPeer] = useState<string | null>(null)
+  const [typingPeer, setTypingPeer] = useState(false)
 
+  // mirrored into a ref so the poll callbacks and composer handlers can read
+  // the current thread without being re-created on every selection change
   const selectedRef = useRef<User | null>(null)
-  selectedRef.current = selected
+  useEffect(() => {
+    selectedRef.current = selected
+  }, [selected])
 
   // ---- user directory (debounced search) -------------------------------
   useEffect(() => {
     let active = true
-    setUsersLoading(true)
     const timer = setTimeout(() => {
+      setUsersLoading(true)
       api
         .users(search.trim() || undefined)
         .then((list) => {
@@ -55,74 +59,46 @@ export function ChatShell({ me }: { me: User }) {
     }
   }, [search])
 
-  // ---- socket lifecycle ------------------------------------------------
-  useEffect(() => {
-    const socket = getSocket()
-    if (!socket.connected) socket.connect()
-
-    const onPresenceList = ({ online }: { online: string[] }) =>
-      setOnlineIds(new Set(online))
-    const onOnline = ({ userId }: { userId: string }) =>
-      setOnlineIds((prev) => new Set(prev).add(userId))
-    const onOffline = ({ userId }: { userId: string }) =>
-      setOnlineIds((prev) => {
-        const next = new Set(prev)
-        next.delete(userId)
-        return next
-      })
-
-    const onMessage = (message: Message) => {
+  // ---- realtime (polling) ----------------------------------------------
+  /** Upsert by `_id`: the poll returns new messages *and* read-flag changes. */
+  const mergeMessages = useCallback(
+    (incoming: Message[]) => {
       const peer = selectedRef.current
-      const involvesPeer =
-        peer &&
-        ((message.sender === peer._id && message.receiver === me._id) ||
-          (message.sender === me._id && message.receiver === peer._id))
+      if (!peer) return
 
-      if (involvesPeer) {
-        setMessages((prev) =>
-          prev.some((m) => m._id === message._id) ? prev : [...prev, message]
-        )
-        if (message.sender === peer!._id) {
-          socket.emit("message:read", { from: peer!._id })
-        }
-      }
-    }
-
-    const onRead = ({ by, ids }: { by: string; ids: string[] }) => {
-      const peer = selectedRef.current
-      if (!peer || by !== peer._id) return
-      setMessages((prev) =>
-        prev.map((m) => (ids.includes(m._id) ? { ...m, read: true } : m))
+      // a poll issued before the user switched threads can land after it
+      const relevant = incoming.filter(
+        (m) =>
+          (m.sender === peer._id && m.receiver === me._id) ||
+          (m.sender === me._id && m.receiver === peer._id)
       )
-    }
+      if (relevant.length === 0) return
 
-    const onTyping = ({ from, typing }: { from: string; typing: boolean }) => {
-      const peer = selectedRef.current
-      if (!peer || from !== peer._id) return
-      setTypingPeer(typing ? from : null)
-    }
+      setMessages((prev) => {
+        const byId = new Map(prev.map((m) => [m._id, m]))
+        for (const m of relevant) byId.set(m._id, m)
+        return [...byId.values()].sort(
+          (a, b) => a.createdAt.localeCompare(b.createdAt) || a._id.localeCompare(b._id)
+        )
+      })
+    },
+    [me._id]
+  )
 
-    socket.on("presence:list", onPresenceList)
-    socket.on("presence:online", onOnline)
-    socket.on("presence:offline", onOffline)
-    socket.on("message:new", onMessage)
-    socket.on("message:read", onRead)
-    socket.on("typing", onTyping)
+  const handleOnline = useCallback((ids: string[]) => setOnlineIds(new Set(ids)), [])
 
-    return () => {
-      socket.off("presence:list", onPresenceList)
-      socket.off("presence:online", onOnline)
-      socket.off("presence:offline", onOffline)
-      socket.off("message:new", onMessage)
-      socket.off("message:read", onRead)
-      socket.off("typing", onTyping)
-    }
-  }, [me._id])
+  const realtime = useRealtime({
+    enabled: true,
+    peerId: selected?._id ?? null,
+    onMessages: mergeMessages,
+    onOnline: handleOnline,
+    onTyping: setTypingPeer,
+  })
 
-  // ---- load a conversation ------------------------------------------------
+  // ---- load a conversation ---------------------------------------------
   const openConversation = useCallback((user: User) => {
     setSelected(user)
-    setTypingPeer(null)
+    setTypingPeer(false)
     setMessages([])
     setMessagesLoading(true)
     api
@@ -136,16 +112,29 @@ export function ChatShell({ me }: { me: User }) {
     (text: string) => {
       const peer = selectedRef.current
       if (!peer) return
-      getSocket().emit("message:send", { to: peer._id, text })
+      api
+        .send(peer._id, text)
+        .then((message) => {
+          mergeMessages([message])
+          // pull the peer's side of the exchange without waiting for the tick
+          realtime.poke()
+        })
+        .catch(() => {
+          // the message did not persist; the composer already cleared, so the
+          // next poll simply will not show it - nothing to roll back
+        })
     },
-    []
+    [mergeMessages, realtime]
   )
 
-  const sendTyping = useCallback((typing: boolean) => {
-    const peer = selectedRef.current
-    if (!peer) return
-    getSocket().emit("typing", { to: peer._id, typing })
-  }, [])
+  const sendTyping = useCallback(
+    (typing: boolean) => {
+      const peer = selectedRef.current
+      if (!peer) return
+      realtime.sendTyping(peer._id, typing)
+    },
+    [realtime]
+  )
 
   async function handleLogout() {
     await logout()
@@ -193,13 +182,15 @@ export function ChatShell({ me }: { me: User }) {
       </aside>
 
       <main className="min-w-0 flex-1">
+        {/* keyed on the peer so per-thread state (the draft) resets on switch */}
         <ChatWindow
+          key={selected?._id ?? "none"}
           me={me}
           peer={selected}
           messages={messages}
           loading={messagesLoading}
           peerOnline={peerOnline}
-          peerTyping={typingPeer !== null}
+          peerTyping={typingPeer}
           onSend={sendMessage}
           onType={sendTyping}
         />

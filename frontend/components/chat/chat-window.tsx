@@ -45,10 +45,6 @@ export function ChatWindow({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages, peerTyping])
 
-  useEffect(() => {
-    setDraft("")
-  }, [peer?._id])
-
   if (!peer) {
     return (
       <div className="flex h-full items-center justify-center p-6">

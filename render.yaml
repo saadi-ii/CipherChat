@@ -1,7 +1,9 @@
-# Render blueprint for the backend (Express + Socket.IO).
+# Render blueprint for the LEGACY standalone backend (Express + Socket.IO).
 #
-# The backend needs a long-running process for WebSockets, so it CANNOT run on
-# Vercel/Netlify serverless. The frontend deploys separately on Vercel.
+# The app now deploys as a single Vercel project (Root Directory = frontend) with
+# its API as Next.js Route Handlers - see README.md. This blueprint is only for
+# self-hosting the old long-running server instead; point the frontend at it with
+# NEXT_PUBLIC_API_URL.
 services:
   - type: web
     name: chatboot-backend
